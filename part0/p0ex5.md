@@ -1,5 +1,7 @@
 # Part0 Exercice 5
 
+The procedure at the beginning of the application is the same as in the previous case. The server sends firs the HTML; it requests the CSS and the JavaScript. When that last document is getting evaluated, it calls for the JSON where all the data is stored. The main difference between the single-page application and the multiple-page application comes after the user sends the form into the server.
+
 ```mermaid
 sequenceDiagram
     participant browser
@@ -25,12 +27,5 @@ sequenceDiagram
     browser->>server: GET https://studies.cs.helsinki.fi/exampleapp/data.json
     activate server
     server-->>browser: [{ "content": "HTML is easy", "date": "2023-1-1" }, ... ]
-    deactivate server
-
-    Note right of browser: When the user click on the Save button.
-
-    browser->>server: POST https://studies.cs.helsinki.fi/exampleapp/new_note_spa
-    activate server
-    server-->>browser: 201 Created
     deactivate server
 ```
