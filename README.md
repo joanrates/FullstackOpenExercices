@@ -1,4 +1,4 @@
-# FullstackOpenExercices
+# FullstackOpenExercises
 
 This repository contains my solutions to the exercises from the [Full Stack Open](https://fullstackopen.com/) course. The course covers various aspects of modern web development, including front-end and back-end technologies, and this repository will reflect my progress through the course.
 
