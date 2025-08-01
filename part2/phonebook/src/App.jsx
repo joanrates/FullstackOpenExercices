@@ -62,11 +62,19 @@ const App = () => {
               }, 5000);
             })
             .catch(error => {
-              setMessage({ text: `Information of ${existing.name} has already been removed from server`, type: 'bad' });
-              setTimeout(() => {
-                setMessage({ text: '', type: '' });
-              }, 5000);
-              setPersons(allPersons.filter(person => person.id !== existing.id));
+              if (error.response.data.error && error.response.data.type === "ValidationError"){
+                console.error(error.response.data.error)
+                setMessage({text:error.response.data.error, type:'bad'});
+                setTimeout(() => {
+                  setMessage({ text: '', type: '' });
+                }, 5000);
+              }else {
+                setMessage({ text: `Information of ${existing.name} has already been removed from server`, type: 'bad' });
+                setTimeout(() => {
+                  setMessage({ text: '', type: '' });
+                }, 5000);
+                setPersons(allPersons.filter(person => person.id !== existing.id));
+              }
             })
             .finally(() => {
               setNewName('');
@@ -77,7 +85,7 @@ const App = () => {
       }
       
       
-      // If not existing, create new
+      // If not existing, remove from the visible list
       if (persons.find(person => person.name.trim().toLowerCase() === newName.trim().toLowerCase())){
         setMessage({ text: `Information of ${newName} has already been removed from server`, type: 'bad' });
         setTimeout(() => {
@@ -87,6 +95,7 @@ const App = () => {
         return;
       }
 
+      //Create a new person
       personsService
         .create(personObj)
         .then(createdPers => {
@@ -97,10 +106,18 @@ const App = () => {
           }, 5000);
         })
         .catch(error => {
-          setMessage({ text: `Failed to add ${personObj.name}`, type: 'bad' });
-          setTimeout(() => {
-            setMessage({ text: '', type: '' });
-          }, 5000);
+          if (error.response.data.error && error.response.data.type === 'ValidationError'){
+            console.error(error.response.data.error)
+            setMessage({text:error.response.data.error, type:'bad'});
+            setTimeout(() => {
+              setMessage({ text: '', type: '' });
+            }, 5000);
+          } else{
+            setMessage({ text: `Failed to add ${personObj.name}`, type: 'bad' });
+            setTimeout(() => {
+              setMessage({ text: '', type: '' });
+            }, 5000);
+          }
         })
         .finally(() => {
           setNewName('');

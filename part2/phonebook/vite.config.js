@@ -9,6 +9,7 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'https://fsopart3-6q39.onrender.com/',
+        //target:'http://localhost:3001',
         changeOrigin: true,
       },
     }
