@@ -9,14 +9,14 @@ const logger = require('./utils/logger')
 const mongoose = require('mongoose')
 
 const mongoUrl = config.MONGO_URI
-logger.info("connecting to Mongo...")
+logger.info('connecting to Mongo...')
 mongoose.connect(mongoUrl)
-    .then(response=>{
-        logger.info("connected to Mongo");
-    })
-    .catch(error=>{
-        logger.error("error connecting to MongoDB:",error.message);
-    })
+  .then(response => {
+    logger.info('connected to Mongo')
+  })
+  .catch(error => {
+    logger.error('error connecting to MongoDB:',error.message)
+  })
 
 app.use(cors())
 app.use(express.json())
