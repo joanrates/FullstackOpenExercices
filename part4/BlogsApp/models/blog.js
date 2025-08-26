@@ -14,11 +14,11 @@ const blogSchema = new mongoose.Schema({
   },
   url: {
     type:String,
-    required: true
+    required:false
   },
   likes: {
     type: Number,
-    required: true
+    default:0
   }
 })
 
