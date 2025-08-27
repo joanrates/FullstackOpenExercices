@@ -1,5 +1,7 @@
 const { test, after, beforeEach, describe } = require('node:test')
 const assert = require('node:assert')
+const bcrypt = require('bcrypt')
+const User = require('../models/user')
 const Blog = require('../models/blog')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
@@ -7,7 +9,7 @@ const app = require('../app')
 const helper = require('./test_helper')
 const api = supertest(app)
 
-describe('when there is initially some notes saved', () => {
+describe('when there is initially some blogs saved', () => {
   beforeEach(async() => {
     await Blog.deleteMany({})
 
@@ -153,7 +155,7 @@ describe('when there is initially some notes saved', () => {
 
     test('a non existing blog can not be viewed', async () => {
       const resultBlog = await api
-        .get(`/api/blogs/${helper.falseId}`)
+        .get(`/api/blogs/${await helper.nonExistingId()}`)
         .expect(404)
 
       assert.strictEqual(resultBlog.body.error, 'no blog with this id found')
@@ -177,7 +179,7 @@ describe('when there is initially some notes saved', () => {
     test('unexisting blogs are already deleted', async () => {
       const blogsBefore = await helper.blogsInDb()
       await api
-        .delete(`/api/blogs/${helper.falseId}`)
+        .delete(`/api/blogs/${await helper.nonExistingId()}`)
         .expect(204)
       const blogsAfter = await helper.blogsInDb()
       assert.deepStrictEqual(blogsBefore, blogsAfter)
@@ -229,7 +231,7 @@ describe('when there is initially some notes saved', () => {
 
     test('updating with no valid id', async() => {
       const blogsAtStart = await helper.blogsInDb()
-      const blogId = helper.falseId
+      const blogId = await helper.nonExistingId()
       const updatedBlog = {
         author: 'blog updater',
         url:'www.example.hah',
@@ -247,6 +249,65 @@ describe('when there is initially some notes saved', () => {
     })
   })
 
+})
+
+describe.only('when there is initially one user in db', () => {
+  beforeEach(async () => {
+    await User.deleteMany({})
+
+    const passwordHash = await bcrypt.hash('sekret', 10)
+    const user = new User({ username: 'root', passwordHash: passwordHash })
+
+    await user.save()
+  })
+
+  test('obtaining real users from db', async () => {
+    const users = await helper.usersInDb()
+    assert(users.map(u => u.username).includes('root'))
+  })
+
+  test('creation succeeds with a fresh username', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'mluukkai',
+      name: 'Matti Luukkainen',
+      password: 'salainen',
+    }
+
+    await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
+
+    const usersAtEnd = await helper.usersInDb()
+    assert.strictEqual(usersAtEnd.length, usersAtStart.length + 1)
+
+    const usernames = usersAtEnd.map(u => u.username)
+    assert(usernames.includes(newUser.username))
+  })
+
+  test('creation fails with proper statuscode and message if username already taken', async () => {
+    const usersAtStart = await helper.usersInDb()
+
+    const newUser = {
+      username: 'root',
+      name: 'Superuser',
+      password: 'salainen',
+    }
+
+    const result = await api
+      .post('/api/users')
+      .send(newUser)
+      .expect(400)
+      .expect('Content-Type', /application\/json/)
+
+    const usersAtEnd = await helper.usersInDb()
+    assert(result.body.error.includes('expected `username` to be unique'))
+
+    assert.strictEqual(usersAtEnd.length, usersAtStart.length)
+  })
 })
 
 after(async () => {
