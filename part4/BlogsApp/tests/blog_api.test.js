@@ -84,6 +84,22 @@ describe('when there is initially some blogs saved', () => {
       assert.deepStrictEqual(createdBlog, newBlog)
     })
 
+    test('valid blog with no token fails', async () => {
+      const newBlog = {
+        title: 'async/await simplifies making async calls',
+        author: 'Not joan',
+        url: 'www.exemple2.com',
+        likes: 40
+      }
+      await api
+        .post('/api/blogs')
+        .send(newBlog)
+        .expect(401)
+        .expect('Content-Type', /application\/json/)
+
+      const response = await helper.blogsInDb()
+    })
+
     test('blog without title is not added', async () => {
       const noTitleBlog = {
         author: 'Not joan',
@@ -195,7 +211,7 @@ describe('when there is initially some blogs saved', () => {
       assert(!titles.includes(blogToDelete.title))
     })
 
-    test.only('unexisting blogs are already deleted', async () => {
+    test('unexisting blogs are already deleted', async () => {
       const blogsBefore = await helper.blogsInDb()
       await api
         .delete(`/api/blogs/${await helper.nonExistingId()}`)
@@ -240,6 +256,7 @@ describe('when there is initially some blogs saved', () => {
       const blogsAtEnd = await helper.blogsInDb()
       const retBlog = blogsAtEnd.filter(blog => blog.id === blogId)
       assert(retBlog.length === 1)
+      delete retBlog[0].user
       assert.deepStrictEqual(retBlog[0], updatedBlog)
     })
 
@@ -261,6 +278,7 @@ describe('when there is initially some blogs saved', () => {
       assert(retBlog.length === 1)
       updatedBlog.title = blogsAtStart[0].title
       updatedBlog.likes = blogsAtStart[0].likes
+      delete retBlog[0].user
       assert.deepStrictEqual(retBlog[0], updatedBlog)
     })
 

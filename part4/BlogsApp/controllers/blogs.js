@@ -24,31 +24,32 @@ blogsRouter.delete('/:id', async (request, response) => {
   if (!blog){
     return response.status(204).end()
   }
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
-  if (!decodedToken.id) {
+  if (!request.userId) {
     return response.status(401).json({
       error: 'token invalid'
     })
   }
-  if (blog.user.toString() !== decodedToken.id){
+  if (blog.user.toString() !== request.userId){
     return response.status(401).json({
       error: 'not the blog owner'
     })
   }
+  const user = request.user
   await Blog.findByIdAndDelete(request.params.id)
+  user.blogs = user.blogs.filter(id => id !== request.params.id)
+  await user.save()
   response.status(204).end()
 
 })
 
 blogsRouter.post('/', async (request, response) => {
   const body = request.body
-  const decodedToken = jwt.verify(request.token, process.env.SECRET)
-  if (!decodedToken.id) {
+  if (!request.userId) {
     return response.status(401).json({
       error: 'token invalid'
     })
   }
-  const user = await User.findById(decodedToken.id)
+  const user = request.user
 
   const blog = new Blog({
     title: body.title,
