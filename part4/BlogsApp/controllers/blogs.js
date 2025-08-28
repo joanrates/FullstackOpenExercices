@@ -9,7 +9,7 @@ blogsRouter.get('/', async (request, response) => {
 })
 
 blogsRouter.get('/:id', async (request, response) => {
-  const blog = await Blog.findById(request.params.id)
+  const blog = await Blog.findById(request.params.id).populate('user', {username: 1, name:1})
   if (blog)
     response.json(blog)
   else{
@@ -18,24 +18,31 @@ blogsRouter.get('/:id', async (request, response) => {
 
 })
 
-const getTokenFrom = request => {
-  const authorization = request.get('authorization')
-  if (authorization && authorization.startsWith('Bearer ')) {
-    return authorization.replace('Bearer ','')
-  }
-  return null
-}
 
 blogsRouter.delete('/:id', async (request, response) => {
-  const blog = await Blog.findByIdAndDelete(request.params.id)
+  const blog = await Blog.findById(request.params.id)
+  if (!blog){
+    return response.status(204).end()
+  }
+  const decodedToken = jwt.verify(request.token, process.env.SECRET)
+  if (!decodedToken.id) {
+    return response.status(401).json({
+      error: 'token invalid'
+    })
+  }
+  if (blog.user.toString() !== decodedToken.id){
+    return response.status(401).json({
+      error: 'not the blog owner'
+    })
+  }
+  await Blog.findByIdAndDelete(request.params.id)
   response.status(204).end()
 
 })
 
 blogsRouter.post('/', async (request, response) => {
   const body = request.body
-  console.log(body)
-  const decodedToken = jwt.verify(getTokenFrom(request), process.env.SECRET)
+  const decodedToken = jwt.verify(request.token, process.env.SECRET)
   if (!decodedToken.id) {
     return response.status(401).json({
       error: 'token invalid'

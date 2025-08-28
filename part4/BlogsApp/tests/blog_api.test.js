@@ -1,20 +1,31 @@
-const { test, after, beforeEach, describe } = require('node:test')
+const { test, after, beforeEach, describe, before } = require('node:test')
 const assert = require('node:assert')
 const bcrypt = require('bcrypt')
 const User = require('../models/user')
 const Blog = require('../models/blog')
 const mongoose = require('mongoose')
 const supertest = require('supertest')
+const jwt = require('jsonwebtoken')
 const app = require('../app')
 const helper = require('./test_helper')
 const api = supertest(app)
 
+let tester
+let token
+
+
 describe('when there is initially some blogs saved', () => {
+  before(async() => {
+    await User.deleteMany({})
+    const userObject = new User(helper.initialUser)
+    tester = (await userObject.save()).toJSON()
+    token = jwt.sign({username: tester.username, id:tester.id}, process.env.SECRET)
+  })
   beforeEach(async() => {
     await Blog.deleteMany({})
-
-    const blogObjects = helper.initialBlogs.map(blog => new Blog(blog))
-    const promiseArray = blogObjects.map(blog => blog.save())
+    
+    const blogObjects = helper.initialBlogs.map(blog => new Blog({... blog, user: tester.id}))
+    promiseArray = blogObjects.map(blog => blog.save())
     await Promise.all(promiseArray)
   })
 
@@ -31,6 +42,7 @@ describe('when there is initially some blogs saved', () => {
   test('api get and tester db objects are the same', async() => {
     const apires = await api.get('/api/blogs')
     const tesres = await helper.blogsInDb()
+
     assert.deepStrictEqual(apires.body, tesres)
   })
 
@@ -56,6 +68,7 @@ describe('when there is initially some blogs saved', () => {
       }
       await api
         .post('/api/blogs')
+        .auth(token, {type: 'bearer'})
         .send(newBlog)
         .expect(201)
         .expect('Content-Type', /application\/json/)
@@ -67,6 +80,7 @@ describe('when there is initially some blogs saved', () => {
       assert.strictEqual(titles.length, helper.initialBlogs.length +1)
       const createdBlog = response[titles.indexOf(newBlog.title)]
       delete createdBlog.id
+      delete createdBlog.user
       assert.deepStrictEqual(createdBlog, newBlog)
     })
 
@@ -79,6 +93,7 @@ describe('when there is initially some blogs saved', () => {
 
       await api
         .post('/api/blogs')
+        .auth(token, {type: 'bearer'})
         .send(noTitleBlog)
         .expect(400)
 
@@ -95,6 +110,7 @@ describe('when there is initially some blogs saved', () => {
 
       await api
         .post('/api/blogs')
+        .auth(token, {type: 'bearer'})
         .send(noAuthBlog)
         .expect(400)
 
@@ -111,6 +127,7 @@ describe('when there is initially some blogs saved', () => {
 
       await api
         .post('/api/blogs')
+        .auth(token, {type: 'bearer'})
         .send(noLikesBlog)
         .expect(201)
 
@@ -130,6 +147,7 @@ describe('when there is initially some blogs saved', () => {
 
       await api
         .post('/api/blogs')
+        .auth(token, {type: 'bearer'})
         .send(noUrlBlog)
         .expect(201)
 
@@ -168,6 +186,7 @@ describe('when there is initially some blogs saved', () => {
       const blogToDelete = blogsAtStart[0]
       await api
         .delete(`/api/blogs/${blogToDelete.id}`)
+        .auth(token, {type: 'bearer'})
         .expect(204)
 
       const blogsAtEnd = await helper.blogsInDb()
@@ -176,14 +195,30 @@ describe('when there is initially some blogs saved', () => {
       assert(!titles.includes(blogToDelete.title))
     })
 
-    test('unexisting blogs are already deleted', async () => {
+    test.only('unexisting blogs are already deleted', async () => {
       const blogsBefore = await helper.blogsInDb()
       await api
         .delete(`/api/blogs/${await helper.nonExistingId()}`)
+        .auth(token, {type: 'bearer'})
         .expect(204)
       const blogsAfter = await helper.blogsInDb()
       assert.deepStrictEqual(blogsBefore, blogsAfter)
 
+    })
+
+    test('cannot delet a blog from someone else', async() => {
+      const userObject = new User({username: 'someone else', name:' asdf', password: 'asdfasdf'})
+      const intruder = (await userObject.save()).toJSON()
+      const int_tok = jwt.sign({username: intruder.username, id:intruder.id}, process.env.SECRET)
+
+      const blogsBefore = await helper.blogsInDb()
+
+      await api
+        .delete(`/api/blogs/${blogsBefore[0].id}`)
+        .auth(int_tok, {type: 'bearer'})
+        .expect(401)
+      const blogsAfter = await helper.blogsInDb()
+      assert.deepStrictEqual(blogsBefore, blogsAfter)
     })
   })
 
@@ -251,7 +286,7 @@ describe('when there is initially some blogs saved', () => {
 
 })
 
-describe.only('when there is initially one user in db', () => {
+describe('when there is initially one user in db', () => {
   beforeEach(async () => {
     await User.deleteMany({})
 
